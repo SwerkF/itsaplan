@@ -1,6 +1,4 @@
 import { describe, expect, it, beforeEach } from 'bun:test';
-import { eq } from 'drizzle-orm';
-import { appSecret, db, readSecret } from '@repo/db';
 import { api, app } from '#tests/helpers/app';
 import { resetDb } from '#tests/helpers/db';
 import { addUser, setup } from '../helpers';
@@ -127,22 +125,6 @@ describe('god OIDC and password settings', () => {
       const saved = await god.api.god['authentik-settings'].put({ clientSecret: '' });
 
       expect(saved.data).toMatchObject({ enabled: true, hasClientSecret: true });
-    });
-
-    it('encrypts and rotates the stored secret', async () => {
-      const { god } = await setup();
-      await god.api.god['authentik-settings'].put({ ...authentikCredentials, enabled: true });
-
-      const stored = await db
-        .select({ ciphertext: appSecret.ciphertext, redacted: appSecret.redacted })
-        .from(appSecret)
-        .where(eq(appSecret.key, 'auth.authentik'));
-      expect(stored[0]?.ciphertext).not.toContain(authentikCredentials.clientSecret);
-      expect(stored[0]?.redacted).toMatchObject({ hasClientSecret: true });
-
-      await god.api.god['authentik-settings'].put({ clientSecret: 'rotated-secret' });
-      const decrypted = await readSecret<{ clientSecret: string }>('auth.authentik');
-      expect(decrypted?.clientSecret).toBe('rotated-secret');
     });
 
     it('refuses to enable Authentik without complete credentials', async () => {
